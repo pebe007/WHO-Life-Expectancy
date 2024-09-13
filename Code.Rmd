@@ -1,0 +1,410 @@
+---
+title: "WHO Life Prediction"
+output: html_notebook
+---
+Nama Kelompok: 
+Anastasia Jocelyn Hilman - 2602073031 
+Jennifer Ardelia Limcia  - 2602105090
+Phoebe Patricia Wibowo   - 2602080825 
+
+Tableau Link: https://public.tableau.com/views/CorrelatesvariableswithAfrica/Dashboard1?:language=en-US&:display_count=n&:origin=viz_share_link
+
+Dataset Link: https://www.kaggle.com/datasets/lashagoch/life-expectancy-who-updated
+
+Purpose: Finding the life expectancy...
+
+Additonal Insights: Which COuntry has the lowest expectancy and why?
+
+Dependant Variable: Life Expectancy 
+
+Type: Regression
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(ggcorrplot)
+library(MLmetrics)
+library(caret)
+```
+
+```{r}
+setwd("C:/Users/REGINA R/Downloads/archive")
+getwd()
+data = read.csv("Life-Expectancy-Data-Updated.csv")
+head(data)
+```
+```{r}
+#encoding economy status
+data[data$Economy_status_Developed==0,"Economy_Status"] = 0
+data[data$Economy_status_Developed==1,"Economy_Status"] = 1
+```
+
+```{r}
+no_outliers = data
+```
+
+```{r}
+glimpse(data)
+```
+
+```{r}
+summary(data)
+```
+#showing the distribution 
+```{r}
+data %>%
+  ggplot(aes(x = Life_expectancy)) + 
+  geom_histogram(aes(y = ..density..), 
+                 colour = "black", 
+                 fill = "white") +
+  geom_density(alpha = .2, fill = "#AB4534") +
+  labs(title = 'Distribution of Life Expectancy')
+```
+
+
+
+Explanation amongst all variables with the outliers
+```{r}
+#par(mfrow=c(3,5))
+variables <- c("Infant_deaths", "Under_five_deaths", "Adult_mortality", "Alcohol_consumption",
+               "Hepatitis_B", "Measles", "BMI", "Polio", "Diphtheria", "Incidents_HIV",
+               "GDP_per_capita", "Population_mln", "Thinness_ten_nineteen_years",
+               "Thinness_five_nine_years", "Schooling")
+
+for (variable in variables) {
+  boxplot(data[[variable]], main = variable)
+}
+```
+
+Grouping by counries (Additional for insights)
+```{r}
+
+african_countries <- c("Algeria", "Angola", "Benin", "Botswana", "Burkina Faso", 
+                       "Burundi", "Cabo Verde", "Cameroon", 
+                       "Central African Republic", "Chad", "Comoros", 
+                       "Congo", "Côte d'Ivoire", "Djibouti", 
+                       "Democratic Republic of the Congo", "Egypt", 
+                       "Equatorial Guinea", "Eritrea", "Eswatini", "Ethiopia", 
+                       "Gabon", "Gambia", "Ghana", "Guinea", "Guinea-Bissau", 
+                       "Kenya", "Lesotho", "Liberia", "Libya", "Madagascar", 
+                       "Malawi", "Mali", "Mauritania", "Mauritius", "Morocco", 
+                       "Mozambique", "Namibia", "Niger", "Nigeria", "Rwanda", 
+                       "Sao Tome and Principe", "Senegal", "Seychelles", 
+                       "Sierra Leone", "Swaziland", "Somalia", "South Africa", 
+                       "South Sudan", "Sudan", "Tanzania", "Togo", 
+                       "Tunisia", "Uganda", "United Republic of Tanzania",
+                       "Zambia", "Zimbabwe")
+
+
+asian_countries <- c("Afghanistan", "Armenia", "Azerbaijan", "Bahrain", 
+                     "Bangladesh", "Bhutan", "Brunei Darussalam", "Cambodia", 
+                     "China", "Cyprus", "Democratic People's Republic of Korea", 
+                     "Georgia", "India", "Indonesia", 
+                     "Iran (Islamic Republic of)", "Iraq", "Israel", "Japan", 
+                     "Jordan", "Kazakhstan", "Kuwait", "Kyrgyzstan", 
+                     "Lao People's Democratic Republic", "Lebanon", "Malaysia", 
+                     "Maldives", "Mongolia", "Myanmar", "Nepal", "Oman", 
+                     "Pakistan", "Philippines", "Qatar", "Republic of Korea", 
+                     "Saudi Arabia", "Singapore", "Sri Lanka", 
+                     "Syrian Arab Republic", "Tajikistan", "Thailand", 
+                     "Timor-Leste", "Turkey", "Turkmenistan", 
+                     "United Arab Emirates", "Uzbekistan", "Viet Nam", "Yemen")
+
+
+european_countries <- c("Albania", "Andorra", "Armenia", "Austria", 
+                        "Azerbaijan", "Belarus", "Belgium", 
+                        "Bosnia and Herzegovina", "Bulgaria", "Croatia", 
+                        "Cyprus", "Czechia", "Denmark", "Estonia", "Finland", 
+                        "France", "Georgia", "Germany", "Greece", "Hungary", 
+                        "Iceland", "Ireland", "Italy", "Kazakhstan", "Kosovo", 
+                        "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", 
+                        "Malta", "Monaco", "Montenegro", 
+                        "Netherlands", "North Macedonia", "Norway", 
+                        "Poland", "Portugal", "Republic of Moldova", 
+                        "Romania", "Russian Federation", "San Marino", 
+                        "Serbia", "Slovakia", "Slovenia", "Spain", "Sweden", 
+                        "Switzerland", 
+                        "The former Yugoslav republic of Macedonia", "Turkey", 
+                        "Ukraine", 
+                        "United Kingdom of Great Britain and Northern Ireland", 
+                        "Vatican City")
+
+
+south_american_countries <- c("Argentina", "Bolivia (Plurinational State of)", 
+                              "Brazil", "Chile", "Colombia", "Ecuador", 
+                              "Guyana", "Paraguay", "Peru", "Suriname", 
+                              "Uruguay", "Venezuela (Bolivarian Republic of)")
+
+
+north_american_countries <- c("Antigua and Barbuda", "Bahamas", "Barbados", 
+                              "Belize", "Canada", "Costa Rica", "Cuba", 
+                              "Dominica", "Dominican Republic", "El Salvador", 
+                              "Grenada", "Guatemala", "Haiti", "Honduras", 
+                              "Jamaica", "Mexico", "Nicaragua", "Panama", 
+                              "Saint Kitts and Nevis", "Saint Lucia", 
+                              "Saint Vincent and the Grenadines", 
+                              "Trinidad and Tobago", "United States of America")
+
+
+oceania_countries <- c("Australia", "Cook Islands", "Fiji", "Kiribati", 
+                       "Marshall Islands", "Micronesia (Federated States of)", 
+                       "Nauru", "New Zealand", "Niue", "Palau", 
+                       "Papua New Guinea", "Samoa", "Solomon Islands", 
+                       "Tonga", "Tuvalu", "Vanuatu")
+
+
+
+
+# Function to assign continent based on country name
+assign_continent <- function(country) {
+  if (country %in% african_countries) {
+    return("Africa")
+  } else if (country %in% asian_countries) {
+    return("Asia")
+  } else if (country %in% european_countries) {
+    return("Europe")
+  } else if (country %in% oceania_countries) {
+    return("Oceania")
+  } else if (country %in% south_american_countries) {
+    return("South America")
+  } else if (country %in% north_american_countries) {
+    return("North America")
+  } else {
+    return(NA)  # If country does not match any vectors, return NA
+  }
+}
+
+# Apply the function to create the "continent" column
+data$Continent <- sapply(data$Country, assign_continent)
+data$Continent <- as.factor(data$Continent) #still works
+
+```
+
+
+```{r}
+#correlation with outliers
+correlations <- data[is.numeric(data)];
+corr <- round(cor(correlations), 3)
+x <- ggcorrplot(corr,type = "upper", lab = TRUE, outline.color = "black", lab_size = 4, legend.title = "Correlation of Numerical Variables",title = "Correlation of all Numerical Variables in the dataset with outliers")
+x
+ggsave("my_plot.jpg", x, width = 20, height = 30, dpi = 600,limitsize = FALSE)
+```
+
+```{r}
+# Function to remove outliers using MAD
+remove_outliers_mad <- function(x, threshold = 3.5) {
+  median_x <- median(x, na.rm = TRUE)
+  mad_x <- mad(x, na.rm = TRUE)
+  outlier_threshold <- median_x + threshold * mad_x
+  x <- ifelse(abs(x - median_x) > outlier_threshold, NA, x)
+  return(x)
+}
+
+columns_to_remove_outliers <- c("Schooling", "Thinness_five_nine_years", "Thinness_ten_nineteen_years", "Population_mln", "GDP_per_capita", "Incidents_HIV", "Diphtheria", "Polio", "BMI", "Measles", "Hepatitis_B", "Alcohol_consumption", "Adult_mortality", "Under_five_deaths", "Infant_deaths")
+
+for (column in columns_to_remove_outliers) {
+  no_outliers[[column]] <- remove_outliers_mad(no_outliers[[column]])
+}
+no_outliers = na.omit(no_outliers)
+summary(no_outliers)
+
+```
+
+```{r}
+correlations_without <- no_outliers[is.numeric(no_outliers)];
+corr <- round(cor(correlations), 3)
+x <- ggcorrplot(corr,type = "upper", lab = TRUE, outline.color = "black", lab_size = 4, legend.title = "Correlation of Numerical Variables",title = "Correlation of all Numerical Variables in the dataset without outliers")
+x
+ggsave("no_outliers.jpg", x, width = 15, height = 15, dpi = 600,limitsize = FALSE)
+```
+If you can't see clear the code, you can run the code or see the "no_outliers.jpg" image
+
+```{r}
+#splitting no outlier data 
+no_outliers = no_outliers[no_outliers$Country!= "Somalia" & no_outliers$Country!= "Mauritius" ,];
+sample <- sample(c(TRUE, FALSE), nrow(no_outliers), replace=TRUE, prob=c(0.7,0.3))
+train <- no_outliers[sample, ]
+test <- no_outliers[!sample, ] 
+```
+
+```{r}
+#linear regression
+model_lm<- lm(Life_expectancy~Economy_Status+Schooling+Thinness_ten_nineteen_years+Thinness_five_nine_years+Thinness_ten_nineteen_years+Population_mln+GDP_per_capita+Incidents_HIV+Diphtheria+Polio+BMI+Measles+Hepatitis_B+Alcohol_consumption+Adult_mortality+Under_five_deaths+Infant_deaths+Year+Region+Country,data = train)
+test$lm <- predict(model_lm,test)
+lm <- nrow(test[round(test$Life_expectancy)==round(test$lm),])
+summary(model_lm) 
+```
+```{r}
+MAE_LM = MAE(test$lm,test$Life_expectancy)
+R2_LM = R2_Score(test$lm, test$Life_expectancy) #mendekati 1 semakin bagus 
+RMSE_LM = RMSE(test$lm,test$Life_expectancy)
+MSE_LM = MSE(test$lm,test$Life_expectancy)#jika tidak sama dengan MAE - outlier
+
+print(paste("Linear Model MAE Score:", MAE_LM))
+print(paste("Linear R2 :", R2_LM))
+print(paste("Linear MSE :", MSE_LM))
+print(paste("Linear RMSE :", RMSE_LM))
+```
+Error of each prediction model:
+```{r}
+# Calculate the p-value
+p_value_lm <- summary(model_lm)$coefficients[, "Pr(>|t|)"]
+
+# Set the significance level (e.g., 0.05)
+alpha <- 0.05
+
+# Count the number of predictors with p-value greater than alpha
+num_errors_lm <- sum(p_value_lm > alpha)
+
+# Calculate the percentage of errors
+percentage_errors_lm <- (num_errors_lm / length(p_value_lm)) * 100
+
+# Print the percentage of errors
+print(paste("Percentage of errors in Linear Regression:", percentage_errors_lm))
+```
+
+```{r}
+#decision Tree
+library(rpart)
+model_decisiontree <- rpart(Life_expectancy~Economy_Status+Schooling+Thinness_ten_nineteen_years+Thinness_five_nine_years+Thinness_ten_nineteen_years+Population_mln+GDP_per_capita+Incidents_HIV+Diphtheria+Polio+BMI+Measles+Hepatitis_B+Alcohol_consumption+Adult_mortality+Under_five_deaths+Infant_deaths+Year+Region+Country, data = train)
+test$decisiontree <- predict(model_decisiontree,test)
+desicion_tree <- nrow(test[round(test$Life_expectancy)==round(test$decisiontree),])
+summary(model_decisiontree)
+```
+```{r}
+library(rpart.plot)
+rpart.plot(model_decisiontree)
+```
+
+Decision Tree
+```{r}
+# Calculate the number of times each variable is selected for splitting
+var_importance <- model_decisiontree$variable.importance
+
+# Calculate the p-values based on the variable importance
+p_values_dt <- 1 - var_importance / max(var_importance)
+
+# Set the significance level (e.g., 0.05)
+alpha <- 0.05
+
+# Count the number of predictors with p-value greater than alpha
+num_errors_dt <- sum(p_values_dt > alpha)
+
+# Calculate the percentage of errors
+percentage_errors_dt <- (num_errors_dt / length(p_values_dt)) * 100
+
+# Print the percentage of errors
+print(paste("Percentage of errors in Decision Tree:", percentage_errors_dt))
+```
+This means that 93.3% of the predictor variables in the Decision Tree model have p-values greater than the significance level, suggesting that these variables may not be statistically significant in predicting the life expectancy.
+
+
+```{r}
+MAE_Tree = MAE(test$decisiontree,test$Life_expectancy)
+R2_Tree = R2_Score(test$decisiontree, test$Life_expectancy)
+RMSE_Tree = RMSE(test$decisiontree,test$Life_expectancy)
+MSE_Tree = MSE(test$decisiontree,test$Life_expectancy)
+
+print(paste("Decision Tree MAE Score:", MAE_Tree))
+print(paste("Decision Tree R2 Random:", R2_Tree))
+print(paste("Decision Tree MSE Random:", MSE_Tree))
+print(paste("Decision Tree RMSE Random:", RMSE_Tree))
+```
+
+
+```{r}
+#Random forest
+library(randomForest)
+model_random <- randomForest(Life_expectancy~Economy_Status+Schooling+Thinness_ten_nineteen_years+Thinness_five_nine_years+Thinness_ten_nineteen_years+Population_mln+GDP_per_capita+Incidents_HIV+Diphtheria+Polio+BMI+Measles+Hepatitis_B+Alcohol_consumption+Adult_mortality+Under_five_deaths+Infant_deaths+Country+Year+Region,data = train,ntree = 600,ntry = 10,nodesize = 20)
+
+model_random <- randomForest(Life_expectancy~.,data = train,ntree = 200,ntry = 15,nodesize = 3)
+
+test$random <- predict(model_random,test)
+importance(model_random)
+
+```
+```{r}
+MAE_Random = MAE(test$random,test$Life_expectancy)
+R2_Random = R2_Score(test$random, test$Life_expectancy)
+RMSE_Random = RMSE(test$random,test$Life_expectancy)
+MSE_Random = MSE(test$random,test$Life_expectancy)
+
+print(paste("Random Forest MAE Score:", MAE_Random))
+print(paste("Random Forest R2 Random:", R2_Random))
+print(paste("Random Forest MSE Random:", MSE_Random))
+print(paste("Random Forest RMSE Random:", RMSE_Random))
+```
+Random Forest
+```{r}
+
+# Get the variable importance measure
+var_importance <- importance(model_random)
+
+# Calculate the p-values based on the variable importance
+p_values_rf <- 1 - var_importance[,"IncNodePurity"] / max(var_importance[,"IncNodePurity"])
+
+# Set the significance level (e.g., 0.05)
+alpha <- 0.05
+
+# Count the number of predictors with p-value greater than alpha
+num_errors_rf <- sum(p_values_rf > alpha)
+
+# Calculate the percentage of errors
+percentage_errors_rf <- (num_errors_rf / length(p_values_rf)) * 100
+
+# Print the percentage of errors
+print(paste("Percentage of errors in Random Forest:", percentage_errors_rf))
+
+```
+
+
+```{r}
+#using anova
+x <- aov(Life_expectancy~., data = no_outliers)
+x
+```
+Based on the ANOVA results, we can draw the following conclusions:
+
+1. Overall Model: The model that includes all the predictor variables explains a significant amount of the variation in life expectancy (F(98, 1297) = 165.14, p < 2e-16).
+
+2. Individual Predictor Variables: Several predictor variables show significant associations with life expectancy. The following variables have a statistically significant effect on life expectancy:
+
+   - CountryKenya (p = 0.002496): Life expectancy differs significantly in Kenya compared to the reference category.
+   - CountryKiribati (p = 1.08e-05): Life expectancy differs significantly in Kiribati compared to the reference category.
+   - CountryKuwait (p = 0.057354): Life expectancy in Kuwait may have a significant difference compared to the reference category, although the p-value suggests marginal significance.
+   - CountryKyrgyz Republic (p < 2e-16): Life expectancy differs significantly in the Kyrgyz Republic compared to the reference category.
+   - CountryLao PDR (p = 0.192870): Life expectancy in Lao PDR does not show a statistically significant difference compared to the reference category.
+   - CountryLatvia (p = 2.96e-05): Life expectancy differs significantly in Latvia compared to the reference category.
+   - CountryLebanon (p < 2e-16): Life expectancy differs significantly in Lebanon compared to the reference category.
+
+3. Other Predictor Variables: The remaining predictor variables (Infant_deaths, Under_five_deaths, Adult_mortality, Alcohol_consumption, Hepatitis_B, Measles, BMI, Polio, Diphtheria, Incidents_HIV, GDP_per_capita, Population_mln, Thinness_ten_nineteen_years, Thinness_five_nine_years, Schooling) did not show statistically significant associations with life expectancy in this analysis.
+
+4. Residuals: The residual standard error is 0.3568206, indicating the average amount of unexplained variation in the data. The residual sum of squares is 165.14, indicating the amount of variation that is not explained by the predictor variables in the model.
+
+In conclusion, this analysis suggests that the country of residence is an important factor in determining life expectancy. Specifically, the countries Kenya, Kiribati, Kuwait, the Kyrgyz Republic, Latvia, and Lebanon show significant differences in life expectancy compared to the reference category. Other predictor variables in the model did not show significant associations with life expectancy.
+
+
+Additional insights graoh using R visualization
+```{r}
+yearly_tot = data |>
+  select(-Country, -Economy_Status) |>
+  group_by(Continent, Year) 
+#summarise_all(sum, na.rm = TRUE)
+
+ggplot(yearly_tot,aes(Year,Polio,color = Continent))+ geom_line(linewidth = 0.6)+
+  geom_hline(yintercept = mean(yearly_tot$Polio), linetype = "solid", color = "grey20")+ 
+  facet_wrap(~Continent)+
+  labs(x = "Year",y = "Polio (Pol3) immunization coverage",title = "Polio Immunization coverage by Continent(2000-2016)",color = "Continent")+
+  scale_color_manual(values = c("red", "#e377c2", "blue","green", "#ff7f0e", "#bcbd22")) 
+
+```
+
+```{r}
+ggplot(yearly_tot,aes(Year,Diphtheria,color = Continent))+ geom_line(size = 0.6)+
+  geom_hline(yintercept = mean(yearly_tot$Diphtheria), linetype = "solid", color = "grey70")+ 
+  facet_wrap(~Continent)+
+  labs(x = "Year", y = "Diphteria immunization coverage", title = "Diphtheria tetanus toxoid and pertussis (DTP3) immunization coverage among 1-year-olds ")
+scale_color_manual(values = c("red", "orange","yellow","green","blue")) 
+
+```
+
